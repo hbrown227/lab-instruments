@@ -154,6 +154,7 @@ textarea { resize: vertical; min-height: 80px; }
 <option value="new">New</option>
 <option value="in_progress_internal">In progress &#8211; Internal</option>
 <option value="in_progress_company">In progress &#8211; Company</option>
+<option value="monitoring">Monitoring</option>
 <option value="resolved_progress">Resolved</option>
 </select>
 </div>
@@ -357,6 +358,7 @@ const map = {
 new: ['New', 'badge-new'],
 in_progress_internal: ['In progress \u2013 Internal', 'badge-internal'],
 in_progress_company: ['In progress \u2013 Company', 'badge-company'],
+monitoring: ['Monitoring', 'badge-monitoring'],
 resolved_progress: ['Resolved', 'badge-resolved-prog']
 };
 const [label, cls] = map[p] || ['New', 'badge-new'];
@@ -385,6 +387,7 @@ const adminControls = adminUnlocked ? `
 <option value="new"${prog==='new'?' selected':''}>New</option>
 <option value="in_progress_internal"${prog==='in_progress_internal'?' selected':''}>In progress \u2013 Internal</option>
 <option value="in_progress_company"${prog==='in_progress_company'?' selected':''}>In progress \u2013 Company</option>
+<option value="monitoring"${prog==='monitoring'?' selected':''}>Monitoring</option>
 <option value="resolved_progress"${prog==='resolved_progress'?' selected':''}>Resolved</option>
 </select>
 </div>
