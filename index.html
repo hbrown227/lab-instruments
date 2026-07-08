@@ -27,6 +27,7 @@ main { max-width: 800px; margin: 0 auto; padding: 1rem; }
 .badge-issue { background: #fdecea; color: #c62828; }
 .badge-maintenance { background: #fff8e1; color: #f57f17; }
 .badge-offline { background: #f5f5f5; color: #757575; }
+.badge-monitoring { background: #e3f2fd; color: #1565c0; }
 .loc-header { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: .06em; padding: 10px 0 4px; margin-top: 6px; border-bottom: 1px solid #f0f0f0; margin-bottom: 2px; }
 .inst-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #f5f5f5; gap: 8px; }
 .inst-row:last-child { border-bottom: none; }
@@ -37,6 +38,7 @@ main { max-width: 800px; margin: 0 auto; padding: 1rem; }
 .dot-issue { background: #e53935; }
 .dot-maintenance { background: #fb8c00; }
 .dot-offline { background: #9e9e9e; }
+.dot-monitoring { background: #1e88e5; }
 .form-group { margin-bottom: .85rem; }
 label { display: block; font-size: 13px; color: #555; margin-bottom: 5px; font-weight: 500; }
 input, select, textarea { width: 100%; font-size: 14px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; color: #1a1a1a; outline: none; }
@@ -93,584 +95,558 @@ textarea { resize: vertical; min-height: 80px; }
 .badge-resolved-prog { background: #e8f5e9; color: #2e7d32; }
 .admin-report-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
 .eta-display { font-size: 11px; color: #888; margin-top: 3px; }
+.admin-note-display { font-size: 12px; color: #444; margin-top: 8px; padding: 8px 10px; background: #f7f7f7; border-radius: 8px; line-height: 1.5; white-space: pre-wrap; }
+.admin-note-display b { color: #1a1a1a; }
 </style>
 </head>
 <body>
-
 <header>
-  <div>
-    <div class="logo"> Harvard Center For Biological Imaging <span>Instruments </span></div>
-    <div id="last-updated">Loading…</div>
-  </div>
-  <button class="btn btn-sm" onclick="refreshAll()" id="refresh-btn">↻ Refresh</button>
+<div>
+<div class="logo"> Harvard Center For Biological Imaging <span>Instruments </span></div>
+<div id="last-updated">Loading…</div>
+</div>
+<button class="btn btn-sm" onclick="refreshAll()" id="refresh-btn">↻ Refresh</button>
 </header>
-
 <main>
-  <div class="tab-bar">
-    <button class="tab active" onclick="showTab('dashboard',this)">Dashboard</button>
-    <button class="tab" onclick="showTab('report',this)">Report issue</button>
-    <button class="tab" onclick="showTab('history',this)">Reports</button>
-    <button class="tab" onclick="showTab('admin',this)">Admin</button>
-  </div>
-
-  <div id="tab-dashboard" class="section active">
-    <div id="banner" class="banner banner-ok">Checking status…</div>
-    <div class="metric-grid" id="metrics"></div>
-    <div class="section-title">Instruments by location</div>
-    <div class="card" id="inst-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
-  </div>
-
-  <div id="tab-report" class="section">
-    <div class="section-title">Report an issue</div>
-    <div class="card">
-      <div class="form-group"><label>Instrument</label><select id="rep-inst"></select></div>
-      <div class="form-group"><label>Severity</label>
-        <select id="rep-sev">
-          <option value="low">Low — minor, still usable</option>
-          <option value="medium" selected>Medium — degraded performance</option>
-          <option value="high">High — out of service</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Description</label><textarea id="rep-desc" placeholder="Describe the problem…"></textarea></div>
-      <label>Photo (optional)</label>
-      <img id="img-preview" class="img-preview" alt="Preview">
-      <div class="img-upload-area" onclick="document.getElementById('img-file').click()">
-        <span id="upload-label">📷 Tap to add a photo</span>
-      </div>
-      <input type="file" id="img-file" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
-      <div class="form-group"><label>Your name (optional)</label><input type="text" id="rep-reporter" placeholder="e.g. A. Singh"></div>
-      <button class="btn btn-primary" id="submit-btn" onclick="submitReport()">Submit report</button>
-    </div>
-  </div>
-
-  <div id="tab-history" class="section">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;gap:8px;flex-wrap:wrap">
-      <div class="section-title" style="margin-bottom:0">All reports</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <select id="filter-status" onchange="renderReports()" style="font-size:13px;width:auto;padding:4px 8px">
-          <option value="all">All</option><option value="open">Open</option><option value="resolved">Resolved</option>
-        </select>
-        <select id="filter-progress" onchange="renderReports()" style="font-size:13px;width:auto;padding:4px 8px">
-          <option value="all">All progress</option>
-          <option value="new">New</option>
-          <option value="in_progress_internal">In progress &#8211; Internal</option>
-          <option value="in_progress_company">In progress &#8211; Company</option>
-          <option value="resolved_progress">Resolved</option>
-        </select>
-      </div>
-    </div>
-    <div id="report-list" class="report-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
-  </div>
-
-  <div id="tab-admin" class="section">
-    <div id="pin-screen" class="pin-screen">
-      <div style="font-size:36px;margin-bottom:1rem">🔒</div>
-      <div style="font-size:16px;font-weight:600;margin-bottom:.4rem">Admin access</div>
-      <p style="font-size:13px;color:#888;margin-bottom:1.5rem">Enter your PIN to manage instruments.</p>
-      <input class="pin-input" type="password" inputmode="numeric" maxlength="6" id="pin-input" placeholder="••••">
-      <div class="pin-error" id="pin-error">Incorrect PIN. Try again.</div>
-      <button class="btn btn-primary" style="max-width:180px;margin:0 auto" onclick="checkPin()">Unlock</button>
-    </div>
-    <div id="admin-panel" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-        <div class="section-title" style="margin-bottom:0">Manage instruments</div>
-        <button class="btn btn-sm btn-danger" onclick="lockAdmin()">Lock</button>
-      </div>
-      <div style="margin-bottom:1.5rem">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#444">Add new location</div>
-        <div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:.85rem 1rem">
-          <div style="flex:1;min-width:130px"><label style="margin-bottom:4px">Name</label><input type="text" id="new-loc-name" placeholder="e.g. Imaging Suite"></div>
-          <div style="flex:1;min-width:130px"><label style="margin-bottom:4px">Building</label><input type="text" id="new-loc-sub" placeholder="e.g. Building A"></div>
-          <button class="btn" onclick="addLocation()">Add</button>
-        </div>
-      </div>
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#444">Locations & instruments</div>
-      <div id="admin-loc-list"></div>
-    </div>
-  </div>
+<div class="tab-bar">
+<button class="tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+<button class="tab" onclick="showTab('report',this)">Report issue</button>
+<button class="tab" onclick="showTab('history',this)">Reports</button>
+<button class="tab" onclick="showTab('admin',this)">Admin</button>
+</div>
+<div id="tab-dashboard" class="section active">
+<div id="banner" class="banner banner-ok">Checking status…</div>
+<div class="metric-grid" id="metrics"></div>
+<div class="section-title">Instruments by location</div>
+<div class="card" id="inst-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+</div>
+<div id="tab-report" class="section">
+<div class="section-title">Report an issue</div>
+<div class="card">
+<div class="form-group"><label>Instrument</label><select id="rep-inst"></select></div>
+<div class="form-group"><label>Severity</label>
+<select id="rep-sev">
+<option value="low">Low — minor, still usable</option>
+<option value="medium" selected>Medium — degraded performance</option>
+<option value="high">High — out of service</option>
+</select>
+</div>
+<div class="form-group"><label>Description</label><textarea id="rep-desc" placeholder="Describe the problem…"></textarea></div>
+<label>Photo (optional)</label>
+<img id="img-preview" class="img-preview" alt="Preview">
+<div class="img-upload-area" onclick="document.getElementById('img-file').click()">
+<span id="upload-label">📷 Tap to add a photo</span>
+</div>
+<input type="file" id="img-file" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+<div class="form-group"><label>Your name (optional)</label><input type="text" id="rep-reporter" placeholder="e.g. A. Singh"></div>
+<button class="btn btn-primary" id="submit-btn" onclick="submitReport()">Submit report</button>
+</div>
+</div>
+<div id="tab-history" class="section">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;gap:8px;flex-wrap:wrap">
+<div class="section-title" style="margin-bottom:0">All reports</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<select id="filter-status" onchange="renderReports()" style="font-size:13px;width:auto;padding:4px 8px">
+<option value="all">All</option><option value="open">Open</option><option value="resolved">Resolved</option>
+</select>
+<select id="filter-progress" onchange="renderReports()" style="font-size:13px;width:auto;padding:4px 8px">
+<option value="all">All progress</option>
+<option value="new">New</option>
+<option value="in_progress_internal">In progress &#8211; Internal</option>
+<option value="in_progress_company">In progress &#8211; Company</option>
+<option value="resolved_progress">Resolved</option>
+</select>
+</div>
+</div>
+<div id="report-list" class="report-list"><div class="loading"><span class="spinner"></span> Loading…</div></div>
+</div>
+<div id="tab-admin" class="section">
+<div id="pin-screen" class="pin-screen">
+<div style="font-size:36px;margin-bottom:1rem">🔒</div>
+<div style="font-size:16px;font-weight:600;margin-bottom:.4rem">Admin access</div>
+<p style="font-size:13px;color:#888;margin-bottom:1.5rem">Enter your PIN to manage instruments.</p>
+<input class="pin-input" type="password" inputmode="numeric" maxlength="6" id="pin-input" placeholder="••••">
+<div class="pin-error" id="pin-error">Incorrect PIN. Try again.</div>
+<button class="btn btn-primary" style="max-width:180px;margin:0 auto" onclick="checkPin()">Unlock</button>
+</div>
+<div id="admin-panel" style="display:none">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+<div class="section-title" style="margin-bottom:0">Manage instruments</div>
+<button class="btn btn-sm btn-danger" onclick="lockAdmin()">Lock</button>
+</div>
+<div style="margin-bottom:1.5rem">
+<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#444">Add new location</div>
+<div class="card" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:.85rem 1rem">
+<div style="flex:1;min-width:130px"><label style="margin-bottom:4px">Name</label><input type="text" id="new-loc-name" placeholder="e.g. Imaging Suite"></div>
+<div style="flex:1;min-width:130px"><label style="margin-bottom:4px">Building</label><input type="text" id="new-loc-sub" placeholder="e.g. Building A"></div>
+<button class="btn" onclick="addLocation()">Add</button>
+</div>
+</div>
+<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#444">Locations & instruments</div>
+<div id="admin-loc-list"></div>
+</div>
+</div>
 </main>
-
 <div class="overlay" id="edit-modal">
-  <div class="modal">
-    <h3>Edit instrument</h3>
-    <div class="form-group"><label>Name</label><input type="text" id="edit-inst-name"></div>
-    <div class="form-group"><label>Status</label>
-      <select id="edit-inst-status">
-        <option value="ok">Operational</option>
-        <option value="issue">Issue reported</option>
-        <option value="maintenance">Maintenance</option>
-        <option value="offline">Offline</option>
-      </select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('edit-modal')">Cancel</button>
-      <button class="btn btn-primary" style="width:auto;padding:8px 16px;margin:0" onclick="saveEditInst()">Save</button>
-    </div>
-  </div>
+<div class="modal">
+<h3>Edit instrument</h3>
+<div class="form-group"><label>Name</label><input type="text" id="edit-inst-name"></div>
+<div class="form-group"><label>Status</label>
+<select id="edit-inst-status">
+<option value="ok">Operational</option>
+<option value="issue">Issue reported</option>
+<option value="monitoring">Monitoring</option>
+<option value="maintenance">Maintenance</option>
+<option value="offline">Offline</option>
+</select>
 </div>
-
+<div class="modal-footer">
+<button class="btn" onclick="closeModal('edit-modal')">Cancel</button>
+<button class="btn btn-primary" style="width:auto;padding:8px 16px;margin:0" onclick="saveEditInst()">Save</button>
+</div>
+</div>
+</div>
 <div class="overlay" id="edit-loc-modal">
-  <div class="modal">
-    <h3>Edit location</h3>
-    <div class="form-group"><label>Name</label><input type="text" id="edit-loc-name"></div>
-    <div class="form-group"><label>Building / address</label><input type="text" id="edit-loc-sub"></div>
-    <div class="modal-footer">
-      <button class="btn" onclick="closeModal('edit-loc-modal')">Cancel</button>
-      <button class="btn btn-primary" style="width:auto;padding:8px 16px;margin:0" onclick="saveEditLoc()">Save</button>
-    </div>
-  </div>
+<div class="modal">
+<h3>Edit location</h3>
+<div class="form-group"><label>Name</label><input type="text" id="edit-loc-name"></div>
+<div class="form-group"><label>Building / address</label><input type="text" id="edit-loc-sub"></div>
+<div class="modal-footer">
+<button class="btn" onclick="closeModal('edit-loc-modal')">Cancel</button>
+<button class="btn btn-primary" style="width:auto;padding:8px 16px;margin:0" onclick="saveEditLoc()">Save</button>
 </div>
-
+</div>
+</div>
 <div class="lightbox" id="lightbox" onclick="this.classList.remove('open')">
-  <img id="lightbox-img" src="" alt="Report photo">
+<img id="lightbox-img" src="" alt="Report photo">
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 const SUPABASE_URL = 'https://psxxeflslqyyloxaicvo.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzeHhlZmxzbHF5eWxveGFpY3ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4MjE0MjAsImV4cCI6MjA5NDM5NzQyMH0.y5c-6Y6fLv-a_td1Y4CW-BN6_gWnU2kI7MogXjgH0wU';
 const ADMIN_PIN = '2010';
 const BUCKET = 'report-images';
-
 let locations = [], reports = [];
 let adminUnlocked = false, editingInstId = null, editingLocId = null;
 let selectedImageBlob = null, selectedImageName = null;
-
 async function sb(path, opts = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': opts.prefer || '',
-      ...opts.headers
-    },
-    ...opts
-  });
-  if (!res.ok) throw new Error(await res.text());
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+headers: {
+'apikey': SUPABASE_KEY,
+'Authorization': `Bearer ${SUPABASE_KEY}`,
+'Content-Type': 'application/json',
+'Prefer': opts.prefer || '',
+...opts.headers
+},
+...opts
+});
+if (!res.ok) throw new Error(await res.text());
+const text = await res.text();
+return text ? JSON.parse(text) : null;
 }
-
 async function sbUpload(path, blob) {
-  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': blob.type,
-      'x-upsert': 'true'
-    },
-    body: blob
-  });
-  if (!res.ok) throw new Error('Image upload failed');
-  return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
+method: 'POST',
+headers: {
+'apikey': SUPABASE_KEY,
+'Authorization': `Bearer ${SUPABASE_KEY}`,
+'Content-Type': blob.type,
+'x-upsert': 'true'
+},
+body: blob
+});
+if (!res.ok) throw new Error('Image upload failed');
+return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
-
 function handleImageSelect(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const MAX = 800;
-      let w = img.width, h = img.height;
-      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob(blob => {
-        selectedImageBlob = blob;
-        selectedImageName = `report_${Date.now()}.jpg`;
-        const preview = document.getElementById('img-preview');
-        preview.src = canvas.toDataURL('image/jpeg', 0.8);
-        preview.classList.add('show');
-        document.getElementById('upload-label').textContent = '✓ Photo selected — tap to change';
-      }, 'image/jpeg', 0.8);
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
+const file = e.target.files[0];
+if (!file) return;
+const reader = new FileReader();
+reader.onload = ev => {
+const img = new Image();
+img.onload = () => {
+const canvas = document.createElement('canvas');
+const MAX = 800;
+let w = img.width, h = img.height;
+if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+canvas.width = w; canvas.height = h;
+canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+canvas.toBlob(blob => {
+selectedImageBlob = blob;
+selectedImageName = `report_${Date.now()}.jpg`;
+const preview = document.getElementById('img-preview');
+preview.src = canvas.toDataURL('image/jpeg', 0.8);
+preview.classList.add('show');
+document.getElementById('upload-label').textContent = '✓ Photo selected — tap to change';
+}, 'image/jpeg', 0.8);
+};
+img.src = ev.target.result;
+};
+reader.readAsDataURL(file);
 }
-
 function openLightbox(url) {
-  document.getElementById('lightbox-img').src = url;
-  document.getElementById('lightbox').classList.add('open');
+document.getElementById('lightbox-img').src = url;
+document.getElementById('lightbox').classList.add('open');
 }
-
 async function loadAll() {
-  const [locs, insts] = await Promise.all([
-    sb('locations?select=*&order=sort_order'),
-    sb('instruments?select=*&order=sort_order')
-  ]);
-  locations = locs.map(l => ({...l, instruments: insts.filter(i => i.location_id === l.id)}));
+const [locs, insts] = await Promise.all([
+sb('locations?select=*&order=sort_order'),
+sb('instruments?select=*&order=sort_order')
+]);
+locations = locs.map(l => ({...l, instruments: insts.filter(i => i.location_id === l.id)}));
 }
-
 async function loadReportsFromDB() {
-  const data = await sb('reports?select=*&order=created_at.desc');
-  reports = data.map(r => ({...r, ts: new Date(r.created_at).getTime()}));
+const data = await sb('reports?select=*&order=created_at.desc');
+reports = data.map(r => ({...r, ts: new Date(r.created_at).getTime()}));
 }
-
 function allInstruments() {
-  return locations.flatMap(l => l.instruments.map(i => ({...i, locationId:l.id, locationName:l.name})));
+return locations.flatMap(l => l.instruments.map(i => ({...i, locationId:l.id, locationName:l.name})));
 }
-
 function statusBadge(s) {
-  const map = {ok:'badge-ok',issue:'badge-issue',maintenance:'badge-maintenance',offline:'badge-offline'};
-  const labels = {ok:'Operational',issue:'Issue',maintenance:'Maintenance',offline:'Offline'};
-  return `<span class="badge ${map[s]||'badge-offline'}">${labels[s]||s}</span>`;
+const map = {ok:'badge-ok',issue:'badge-issue',monitoring:'badge-monitoring',maintenance:'badge-maintenance',offline:'badge-offline'};
+const labels = {ok:'Operational',issue:'Issue',monitoring:'Monitoring',maintenance:'Maintenance',offline:'Offline'};
+return `<span class="badge ${map[s]||'badge-offline'}">${labels[s]||s}</span>`;
 }
-
 function renderDashboard() {
-  const all = allInstruments();
-  const total = all.length;
-  const ok = all.filter(i=>i.status==='ok').length;
-  const issue = all.filter(i=>i.status==='issue').length;
-  const openR = reports.filter(r=>r.status==='open').length;
-
-  const banner = document.getElementById('banner');
-  if (issue > 0 || all.filter(i=>i.status==='offline').length > 0) {
-    banner.className = 'banner banner-issue';
-    banner.textContent = `⚠️ ${issue} instrument${issue!==1?'s':''} currently need attention`;
-  } else {
-    banner.className = 'banner banner-ok';
-    banner.textContent = '✓ All instruments operational';
-  }
-
-  document.getElementById('metrics').innerHTML = `
-    <div class="metric"><div class="metric-label">Total</div><div class="metric-value">${total}</div></div>
-    <div class="metric"><div class="metric-label">Operational</div><div class="metric-value" style="color:#2e7d32">${ok}</div></div>
-    <div class="metric"><div class="metric-label">Issues</div><div class="metric-value" style="color:#c62828">${issue}</div></div>
-    <div class="metric"><div class="metric-label">Open reports</div><div class="metric-value">${openR}</div></div>
-  `;
-
-  let html = '';
-  for (const loc of locations) {
-    html += `<div class="loc-header">${loc.name}${loc.sub?` <span style="font-weight:400;opacity:.65">· ${loc.sub}</span>`:''}</div>`;
-    for (const inst of loc.instruments) {
-      const nr = reports.filter(r=>r.instrument_id===inst.id&&r.status==='open').length;
-      html += `<div class="inst-row">
-        <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-          <span class="dot dot-${inst.status||'ok'}"></span>
-          <div><div class="inst-name">${inst.name}</div>${nr?`<div class="inst-note">${nr} open report${nr>1?'s':''}</div>`:''}</div>
-        </div>${statusBadge(inst.status||'ok')}</div>`;
-    }
-  }
-  document.getElementById('inst-list').innerHTML = html || '<div class="empty">No instruments found</div>';
-  document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+const all = allInstruments();
+const total = all.length;
+const ok = all.filter(i=>i.status==='ok').length;
+const issue = all.filter(i=>i.status==='issue').length;
+const openR = reports.filter(r=>r.status==='open').length;
+const banner = document.getElementById('banner');
+if (issue > 0 || all.filter(i=>i.status==='offline').length > 0) {
+banner.className = 'banner banner-issue';
+banner.textContent = `⚠️ ${issue} instrument${issue!==1?'s':''} currently need attention`;
+} else {
+banner.className = 'banner banner-ok';
+banner.textContent = '✓ All instruments operational';
 }
-
+document.getElementById('metrics').innerHTML = `
+<div class="metric"><div class="metric-label">Total</div><div class="metric-value">${total}</div></div>
+<div class="metric"><div class="metric-label">Operational</div><div class="metric-value" style="color:#2e7d32">${ok}</div></div>
+<div class="metric"><div class="metric-label">Issues</div><div class="metric-value" style="color:#c62828">${issue}</div></div>
+<div class="metric"><div class="metric-label">Open reports</div><div class="metric-value">${openR}</div></div>
+`;
+let html = '';
+for (const loc of locations) {
+html += `<div class="loc-header">${loc.name}${loc.sub?` <span style="font-weight:400;opacity:.65">· ${loc.sub}</span>`:''}</div>`;
+for (const inst of loc.instruments) {
+const nr = reports.filter(r=>r.instrument_id===inst.id&&r.status==='open').length;
+html += `<div class="inst-row">
+<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+<span class="dot dot-${inst.status||'ok'}"></span>
+<div><div class="inst-name">${inst.name}</div>${nr?`<div class="inst-note">${nr} open report${nr>1?'s':''}</div>`:''}</div>
+</div>${statusBadge(inst.status||'ok')}</div>`;
+}
+}
+document.getElementById('inst-list').innerHTML = html || '<div class="empty">No instruments found</div>';
+document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
 function renderReportForm() {
-  let html = '';
-  for (const loc of locations) {
-    if (!loc.instruments.length) continue;
-    html += `<optgroup label="${loc.name}${loc.sub?' — '+loc.sub:''}">`;
-    for (const inst of loc.instruments) html += `<option value="${inst.id}">${inst.name}</option>`;
-    html += '</optgroup>';
-  }
-  document.getElementById('rep-inst').innerHTML = html;
+let html = '';
+for (const loc of locations) {
+if (!loc.instruments.length) continue;
+html += `<optgroup label="${loc.name}${loc.sub?' — '+loc.sub:''}">`;
+for (const inst of loc.instruments) html += `<option value="${inst.id}">${inst.name}</option>`;
+html += '</optgroup>';
 }
-
+document.getElementById('rep-inst').innerHTML = html;
+}
 function progressLabel(p) {
-  const map = {
-    new: ['New', 'badge-new'],
-    in_progress_internal: ['In progress \u2013 Internal', 'badge-internal'],
-    in_progress_company: ['In progress \u2013 Company', 'badge-company'],
-    resolved_progress: ['Resolved', 'badge-resolved-prog']
-  };
-  const [label, cls] = map[p] || ['New', 'badge-new'];
-  return `<span class="badge ${cls}">${label}</span>`;
+const map = {
+new: ['New', 'badge-new'],
+in_progress_internal: ['In progress \u2013 Internal', 'badge-internal'],
+in_progress_company: ['In progress \u2013 Company', 'badge-company'],
+resolved_progress: ['Resolved', 'badge-resolved-prog']
+};
+const [label, cls] = map[p] || ['New', 'badge-new'];
+return `<span class="badge ${cls}">${label}</span>`;
 }
-
 function renderReports() {
-  const filterStatus = document.getElementById('filter-status').value;
-  const filterProgress = document.getElementById('filter-progress').value;
-  let list = reports;
-  if (filterStatus !== 'all') list = list.filter(r => r.status === filterStatus);
-  if (filterProgress !== 'all') list = list.filter(r => (r.progress || 'new') === filterProgress);
-  const el = document.getElementById('report-list');
-  if (!list.length) { el.innerHTML = '<div class="empty">No reports found</div>'; return; }
-  const all = allInstruments();
-  el.innerHTML = list.map(r => {
-    const inst = all.find(i => i.id === r.instrument_id);
-    const sev = {high:'sev-high',medium:'sev-medium',low:'sev-low'}[r.severity] || '';
-    const date = new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-    const prog = r.progress || 'new';
-    const eta = r.eta ? new Date(r.eta).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
-    const adminControls = adminUnlocked ? `
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:160px">
-          <label style="font-size:11px;color:#888;margin-bottom:3px;display:block">Progress</label>
-          <select style="font-size:12px;padding:4px 7px;border-radius:6px;width:100%" onchange="updateReportProgress('${r.id}',this.value)">
-            <option value="new"${prog==='new'?' selected':''}>New</option>
-            <option value="in_progress_internal"${prog==='in_progress_internal'?' selected':''}>In progress \u2013 Internal</option>
-            <option value="in_progress_company"${prog==='in_progress_company'?' selected':''}>In progress \u2013 Company</option>
-            <option value="resolved_progress"${prog==='resolved_progress'?' selected':''}>Resolved</option>
-          </select>
-        </div>
-        <div style="flex:1;min-width:180px">
-          <label style="font-size:11px;color:#888;margin-bottom:3px;display:block">Est. resolution time</label>
-          <input type="datetime-local" style="font-size:12px;padding:4px 7px;border-radius:6px;width:100%" value="${r.eta ? r.eta.slice(0,16) : ''}" onchange="updateReportEta('${r.id}',this.value)">
-        </div>
-        ${r.status==='open'?`<button class="btn btn-sm" style="flex-shrink:0" onclick="resolveReport('${r.id}','${r.instrument_id}')">Resolve</button>`:''}
-      </div>` : '';
-    return `<div class="report-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="min-width:0;flex:1">
-          <div style="font-size:13px;font-weight:600">${inst ? inst.name : 'Unknown instrument'}</div>
-          <div style="font-size:11px;color:#888;margin-top:2px">
-            ${inst ? `<span class="loc-pill">${inst.locationName}</span> ` : ''}${date}${r.reporter ? ' \u00b7 ' + r.reporter : ''} \u00b7 <span class="${sev}">${r.severity} severity</span>
-          </div>
-          <div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            ${progressLabel(prog)}
-            ${eta ? `<span class="eta-display">🕐 ETA: ${eta}</span>` : ''}
-          </div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
-          <span class="badge ${r.status==='open'?'badge-issue':'badge-ok'}">${r.status}</span>
-        </div>
-      </div>
-      <div style="font-size:13px;color:#555;margin-top:8px;line-height:1.5">${r.description}</div>
-      ${r.image_url ? `<img class="report-img" src="${r.image_url}" alt="Report photo" onclick="openLightbox('${r.image_url}')">` : ''}
-      ${adminControls}
-    </div>`;
-  }).join('');
+const filterStatus = document.getElementById('filter-status').value;
+const filterProgress = document.getElementById('filter-progress').value;
+let list = reports;
+if (filterStatus !== 'all') list = list.filter(r => r.status === filterStatus);
+if (filterProgress !== 'all') list = list.filter(r => (r.progress || 'new') === filterProgress);
+const el = document.getElementById('report-list');
+if (!list.length) { el.innerHTML = '<div class="empty">No reports found</div>'; return; }
+const all = allInstruments();
+el.innerHTML = list.map(r => {
+const inst = all.find(i => i.id === r.instrument_id);
+const sev = {high:'sev-high',medium:'sev-medium',low:'sev-low'}[r.severity] || '';
+const date = new Date(r.ts).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+const prog = r.progress || 'new';
+const eta = r.eta ? new Date(r.eta).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
+const adminControls = adminUnlocked ? `
+<div style="margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+<div style="flex:1;min-width:160px">
+<label style="font-size:11px;color:#888;margin-bottom:3px;display:block">Progress</label>
+<select style="font-size:12px;padding:4px 7px;border-radius:6px;width:100%" onchange="updateReportProgress('${r.id}',this.value)">
+<option value="new"${prog==='new'?' selected':''}>New</option>
+<option value="in_progress_internal"${prog==='in_progress_internal'?' selected':''}>In progress \u2013 Internal</option>
+<option value="in_progress_company"${prog==='in_progress_company'?' selected':''}>In progress \u2013 Company</option>
+<option value="resolved_progress"${prog==='resolved_progress'?' selected':''}>Resolved</option>
+</select>
+</div>
+<div style="flex:1;min-width:180px">
+<label style="font-size:11px;color:#888;margin-bottom:3px;display:block">Est. resolution time</label>
+<input type="datetime-local" style="font-size:12px;padding:4px 7px;border-radius:6px;width:100%" value="${r.eta ? r.eta.slice(0,16) : ''}" onchange="updateReportEta('${r.id}',this.value)">
+</div>
+${r.status==='open'?`<button class="btn btn-sm" style="flex-shrink:0" onclick="resolveReport('${r.id}','${r.instrument_id}')">Resolve</button>`:''}
+</div>
+<div style="margin-top:10px">
+<label style="font-size:11px;color:#888;margin-bottom:3px;display:block">Update notes (visible to team)</label>
+<textarea id="notes-${r.id}" style="font-size:12px;padding:6px 8px;border-radius:6px;min-height:56px" placeholder="Add an update, e.g. what was tried, vendor ticket #, next steps…">${r.admin_notes || ''}</textarea>
+<button class="btn btn-sm" style="margin-top:6px" onclick="updateReportNotes('${r.id}')">Save notes</button>
+</div>` : '';
+const notesDisplay = (!adminUnlocked && r.admin_notes) ? `<div class="admin-note-display"><b>Update:</b> ${r.admin_notes}</div>` : '';
+return `<div class="report-card">
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+<div style="min-width:0;flex:1">
+<div style="font-size:13px;font-weight:600">${inst ? inst.name : 'Unknown instrument'}</div>
+<div style="font-size:11px;color:#888;margin-top:2px">
+${inst ? `<span class="loc-pill">${inst.locationName}</span> ` : ''}${date}${r.reporter ? ' \u00b7 ' + r.reporter : ''} \u00b7 <span class="${sev}">${r.severity} severity</span>
+</div>
+<div style="margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+${progressLabel(prog)}
+${eta ? `<span class="eta-display">🕐 ETA: ${eta}</span>` : ''}
+</div>
+</div>
+<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">
+<span class="badge ${r.status==='open'?'badge-issue':'badge-ok'}">${r.status}</span>
+</div>
+</div>
+<div style="font-size:13px;color:#555;margin-top:8px;line-height:1.5">${r.description}</div>
+${r.image_url ? `<img class="report-img" src="${r.image_url}" alt="Report photo" onclick="openLightbox('${r.image_url}')">` : ''}
+${notesDisplay}
+${adminControls}
+</div>`;
+}).join('');
 }
-
 function renderAdminPanel() {
-  let html = '';
-  for (const loc of locations) {
-    html += `<div class="admin-loc-block">
-      <div class="admin-loc-hdr">
-        <div>
-          <div style="font-size:13px;font-weight:600">${loc.name}</div>
-          ${loc.sub?`<div style="font-size:11px;color:#888">${loc.sub}</div>`:''}
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm" onclick="openLocModal('${loc.id}')">Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteLocation('${loc.id}')">Delete</button>
-        </div>
-      </div>`;
-    for (const inst of loc.instruments) {
-      html += `<div class="admin-inst-row">
-        <span class="dot dot-${inst.status||'ok'}" style="flex-shrink:0"></span>
-        <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${inst.name}</span>
-        <select style="font-size:12px;width:auto;flex-shrink:0;padding:3px 6px;border-radius:6px" onchange="setStatus('${inst.id}',this.value)">
-          <option value="ok"${inst.status==='ok'?' selected':''}>Operational</option>
-          <option value="issue"${inst.status==='issue'?' selected':''}>Issue</option>
-          <option value="maintenance"${inst.status==='maintenance'?' selected':''}>Maintenance</option>
-          <option value="offline"${inst.status==='offline'?' selected':''}>Offline</option>
-        </select>
-        <button class="btn btn-sm" onclick="openEditInstModal('${inst.id}')">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteInstrument('${loc.id}','${inst.id}')">✕</button>
-      </div>`;
-    }
-    html += `<div class="admin-add-row">
-      <input type="text" placeholder="New instrument name…" id="new-inst-${loc.id}" style="font-size:13px">
-      <button class="btn btn-sm" onclick="addInstrument('${loc.id}')">Add</button>
-    </div></div>`;
-  }
-  document.getElementById('admin-loc-list').innerHTML = html;
+let html = '';
+for (const loc of locations) {
+html += `<div class="admin-loc-block">
+<div class="admin-loc-hdr">
+<div>
+<div style="font-size:13px;font-weight:600">${loc.name}</div>
+${loc.sub?`<div style="font-size:11px;color:#888">${loc.sub}</div>`:''}
+</div>
+<div style="display:flex;gap:6px">
+<button class="btn btn-sm" onclick="openLocModal('${loc.id}')">Edit</button>
+<button class="btn btn-sm btn-danger" onclick="deleteLocation('${loc.id}')">Delete</button>
+</div>
+</div>`;
+for (const inst of loc.instruments) {
+html += `<div class="admin-inst-row">
+<span class="dot dot-${inst.status||'ok'}" style="flex-shrink:0"></span>
+<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${inst.name}</span>
+<select style="font-size:12px;width:auto;flex-shrink:0;padding:3px 6px;border-radius:6px" onchange="setStatus('${inst.id}',this.value)">
+<option value="ok"${inst.status==='ok'?' selected':''}>Operational</option>
+<option value="issue"${inst.status==='issue'?' selected':''}>Issue</option>
+<option value="monitoring"${inst.status==='monitoring'?' selected':''}>Monitoring</option>
+<option value="maintenance"${inst.status==='maintenance'?' selected':''}>Maintenance</option>
+<option value="offline"${inst.status==='offline'?' selected':''}>Offline</option>
+</select>
+<button class="btn btn-sm" onclick="openEditInstModal('${inst.id}')">Edit</button>
+<button class="btn btn-sm btn-danger" onclick="deleteInstrument('${loc.id}','${inst.id}')">✕</button>
+</div>`;
 }
-
+html += `<div class="admin-add-row">
+<input type="text" placeholder="New instrument name…" id="new-inst-${loc.id}" style="font-size:13px">
+<button class="btn btn-sm" onclick="addInstrument('${loc.id}')">Add</button>
+</div></div>`;
+}
+document.getElementById('admin-loc-list').innerHTML = html;
+}
 async function submitReport() {
-  const instrument_id = document.getElementById('rep-inst').value;
-  const severity = document.getElementById('rep-sev').value;
-  const description = document.getElementById('rep-desc').value.trim();
-  const reporter = document.getElementById('rep-reporter').value.trim();
-  if (!description) { showToast('Please describe the issue'); return; }
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = 'Submitting…';
-  try {
-    let image_url = '';
-    if (selectedImageBlob) {
-      showToast('Uploading photo…');
-      image_url = await sbUpload(selectedImageName, selectedImageBlob);
-    }
-    await sb('reports', {
-      method: 'POST', prefer: 'return=minimal',
-      body: JSON.stringify({id:'r'+Date.now(), instrument_id, severity, description, reporter, status:'open', image_url, progress:'new'})
-    });
-    if (severity==='high'||severity==='medium') await setStatus(instrument_id, 'issue');
-    document.getElementById('rep-desc').value = '';
-    document.getElementById('rep-reporter').value = '';
-    document.getElementById('img-preview').classList.remove('show');
-    document.getElementById('upload-label').textContent = '📷 Tap to add a photo';
-    document.getElementById('img-file').value = '';
-    selectedImageBlob = null; selectedImageName = null;
-    showToast('Report submitted ✓');
-    await refreshAll();
-    document.querySelectorAll('.tab')[0].click();
-  } catch(e) { showToast('Error: ' + e.message); }
-  btn.disabled = false; btn.textContent = 'Submit report';
+const instrument_id = document.getElementById('rep-inst').value;
+const severity = document.getElementById('rep-sev').value;
+const description = document.getElementById('rep-desc').value.trim();
+const reporter = document.getElementById('rep-reporter').value.trim();
+if (!description) { showToast('Please describe the issue'); return; }
+const btn = document.getElementById('submit-btn');
+btn.disabled = true; btn.textContent = 'Submitting…';
+try {
+let image_url = '';
+if (selectedImageBlob) {
+showToast('Uploading photo…');
+image_url = await sbUpload(selectedImageName, selectedImageBlob);
 }
-
+await sb('reports', {
+method: 'POST', prefer: 'return=minimal',
+body: JSON.stringify({id:'r'+Date.now(), instrument_id, severity, description, reporter, status:'open', image_url, progress:'new'})
+});
+if (severity==='high'||severity==='medium') await setStatus(instrument_id, 'issue');
+document.getElementById('rep-desc').value = '';
+document.getElementById('rep-reporter').value = '';
+document.getElementById('img-preview').classList.remove('show');
+document.getElementById('upload-label').textContent = '📷 Tap to add a photo';
+document.getElementById('img-file').value = '';
+selectedImageBlob = null; selectedImageName = null;
+showToast('Report submitted ✓');
+await refreshAll();
+document.querySelectorAll('.tab')[0].click();
+} catch(e) { showToast('Error: ' + e.message); }
+btn.disabled = false; btn.textContent = 'Submit report';
+}
 async function updateReportProgress(id, progress) {
-  await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({progress})});
-  const r = reports.find(r => r.id === id);
-  if (r) r.progress = progress;
-  renderReports();
-  showToast('Progress updated ✓');
+await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({progress})});
+const r = reports.find(r => r.id === id);
+if (r) r.progress = progress;
+renderReports();
+showToast('Progress updated ✓');
 }
-
 async function updateReportEta(id, eta) {
-  const val = eta ? new Date(eta).toISOString() : null;
-  await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({eta: val})});
-  const r = reports.find(r => r.id === id);
-  if (r) r.eta = val;
-  renderReports();
-  showToast('ETA updated ✓');
+const val = eta ? new Date(eta).toISOString() : null;
+await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({eta: val})});
+const r = reports.find(r => r.id === id);
+if (r) r.eta = val;
+renderReports();
+showToast('ETA updated ✓');
 }
-
+async function updateReportNotes(id) {
+const textarea = document.getElementById(`notes-${id}`);
+const notes = textarea ? textarea.value.trim() : '';
+await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({admin_notes: notes})});
+const r = reports.find(r => r.id === id);
+if (r) r.admin_notes = notes;
+renderReports();
+showToast('Notes saved ✓');
+}
 async function resolveReport(id, instrument_id) {
-  await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({status:'resolved'})});
-  const stillOpen = reports.some(r=>r.instrument_id===instrument_id&&r.status==='open'&&r.id!==id);
-  if (!stillOpen) await setStatus(instrument_id, 'ok');
-  await refreshAll();
-  renderReports();
-  showToast('Report resolved ✓');
+await sb(`reports?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({status:'resolved'})});
+const stillOpen = reports.some(r=>r.instrument_id===instrument_id&&r.status==='open'&&r.id!==id);
+if (!stillOpen) await setStatus(instrument_id, 'ok');
+await refreshAll();
+renderReports();
+showToast('Report resolved ✓');
 }
-
 async function setStatus(id, status) {
-  await sb(`instruments?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({status})});
-  const inst = allInstruments().find(i=>i.id===id);
-  if (inst) inst.status = status;
-  renderDashboard();
-  if (adminUnlocked) renderAdminPanel();
-  showToast('Status updated ✓');
+await sb(`instruments?id=eq.${id}`, {method:'PATCH', prefer:'return=minimal', body:JSON.stringify({status})});
+const inst = allInstruments().find(i=>i.id===id);
+if (inst) inst.status = status;
+renderDashboard();
+if (adminUnlocked) renderAdminPanel();
+showToast('Status updated ✓');
 }
-
 function checkPin() {
-  if (document.getElementById('pin-input').value.trim()===ADMIN_PIN) {
-    adminUnlocked=true;
-    document.getElementById('pin-screen').style.display='none';
-    document.getElementById('admin-panel').style.display='block';
-    document.getElementById('pin-error').style.display='none';
-    document.getElementById('pin-input').value='';
-    renderAdminPanel();
-    if(document.querySelector('#tab-history.active')) renderReports();
-  } else {
-    document.getElementById('pin-error').style.display='block';
-    document.getElementById('pin-input').value='';
-  }
+if (document.getElementById('pin-input').value.trim()===ADMIN_PIN) {
+adminUnlocked=true;
+document.getElementById('pin-screen').style.display='none';
+document.getElementById('admin-panel').style.display='block';
+document.getElementById('pin-error').style.display='none';
+document.getElementById('pin-input').value='';
+renderAdminPanel();
+if(document.querySelector('#tab-history.active')) renderReports();
+} else {
+document.getElementById('pin-error').style.display='block';
+document.getElementById('pin-input').value='';
+}
 }
 function lockAdmin() {
-  adminUnlocked=false;
-  document.getElementById('pin-screen').style.display='block';
-  document.getElementById('admin-panel').style.display='none';
-  if(document.querySelector('#tab-history.active')) renderReports();
+adminUnlocked=false;
+document.getElementById('pin-screen').style.display='block';
+document.getElementById('admin-panel').style.display='none';
+if(document.querySelector('#tab-history.active')) renderReports();
 }
-
 function openEditInstModal(id) {
-  editingInstId=id;
-  const inst=allInstruments().find(i=>i.id===id);
-  if(!inst)return;
-  document.getElementById('edit-inst-name').value=inst.name;
-  document.getElementById('edit-inst-status').value=inst.status||'ok';
-  document.getElementById('edit-modal').classList.add('open');
+editingInstId=id;
+const inst=allInstruments().find(i=>i.id===id);
+if(!inst)return;
+document.getElementById('edit-inst-name').value=inst.name;
+document.getElementById('edit-inst-status').value=inst.status||'ok';
+document.getElementById('edit-modal').classList.add('open');
 }
 async function saveEditInst() {
-  const name=document.getElementById('edit-inst-name').value.trim();
-  const status=document.getElementById('edit-inst-status').value;
-  if(!name){showToast('Name required');return;}
-  await sb(`instruments?id=eq.${editingInstId}`,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({name,status})});
-  closeModal('edit-modal');
-  await refreshAll();
-  showToast('Instrument updated ✓');
+const name=document.getElementById('edit-inst-name').value.trim();
+const status=document.getElementById('edit-inst-status').value;
+if(!name){showToast('Name required');return;}
+await sb(`instruments?id=eq.${editingInstId}`,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({name,status})});
+closeModal('edit-modal');
+await refreshAll();
+showToast('Instrument updated ✓');
 }
-
 function openLocModal(id) {
-  editingLocId=id;
-  const loc=locations.find(l=>l.id===id);
-  if(!loc)return;
-  document.getElementById('edit-loc-name').value=loc.name;
-  document.getElementById('edit-loc-sub').value=loc.sub||'';
-  document.getElementById('edit-loc-modal').classList.add('open');
+editingLocId=id;
+const loc=locations.find(l=>l.id===id);
+if(!loc)return;
+document.getElementById('edit-loc-name').value=loc.name;
+document.getElementById('edit-loc-sub').value=loc.sub||'';
+document.getElementById('edit-loc-modal').classList.add('open');
 }
 async function saveEditLoc() {
-  const name=document.getElementById('edit-loc-name').value.trim();
-  const sub=document.getElementById('edit-loc-sub').value.trim();
-  if(!name){showToast('Name required');return;}
-  await sb(`locations?id=eq.${editingLocId}`,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({name,sub})});
-  closeModal('edit-loc-modal');
-  await refreshAll();
-  showToast('Location updated ✓');
+const name=document.getElementById('edit-loc-name').value.trim();
+const sub=document.getElementById('edit-loc-sub').value.trim();
+if(!name){showToast('Name required');return;}
+await sb(`locations?id=eq.${editingLocId}`,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({name,sub})});
+closeModal('edit-loc-modal');
+await refreshAll();
+showToast('Location updated ✓');
 }
-
 async function addInstrument(locId) {
-  const input=document.getElementById('new-inst-'+locId);
-  const name=input.value.trim();
-  if(!name){showToast('Enter instrument name');return;}
-  const maxOrder=Math.max(0,...(locations.find(l=>l.id===locId)?.instruments.map(i=>i.sort_order||0)||[0]));
-  await sb('instruments',{method:'POST',prefer:'return=minimal',body:JSON.stringify({id:'i'+Date.now(),location_id:locId,name,status:'ok',sort_order:maxOrder+1})});
-  input.value='';
-  await refreshAll();
-  showToast('Instrument added ✓');
+const input=document.getElementById('new-inst-'+locId);
+const name=input.value.trim();
+if(!name){showToast('Enter instrument name');return;}
+const maxOrder=Math.max(0,...(locations.find(l=>l.id===locId)?.instruments.map(i=>i.sort_order||0)||[0]));
+await sb('instruments',{method:'POST',prefer:'return=minimal',body:JSON.stringify({id:'i'+Date.now(),location_id:locId,name,status:'ok',sort_order:maxOrder+1})});
+input.value='';
+await refreshAll();
+showToast('Instrument added ✓');
 }
-
 async function deleteInstrument(locId, instId) {
-  if(!confirm('Delete this instrument?'))return;
-  await sb(`instruments?id=eq.${instId}`,{method:'DELETE'});
-  await refreshAll();
-  showToast('Instrument removed');
+if(!confirm('Delete this instrument?'))return;
+await sb(`instruments?id=eq.${instId}`,{method:'DELETE'});
+await refreshAll();
+showToast('Instrument removed');
 }
-
 async function addLocation() {
-  const name=document.getElementById('new-loc-name').value.trim();
-  const sub=document.getElementById('new-loc-sub').value.trim();
-  if(!name){showToast('Location name required');return;}
-  const maxOrder=Math.max(0,...locations.map(l=>l.sort_order||0));
-  await sb('locations',{method:'POST',prefer:'return=minimal',body:JSON.stringify({id:'loc'+Date.now(),name,sub,sort_order:maxOrder+1})});
-  document.getElementById('new-loc-name').value='';
-  document.getElementById('new-loc-sub').value='';
-  await refreshAll();
-  showToast('Location added ✓');
+const name=document.getElementById('new-loc-name').value.trim();
+const sub=document.getElementById('new-loc-sub').value.trim();
+if(!name){showToast('Location name required');return;}
+const maxOrder=Math.max(0,...locations.map(l=>l.sort_order||0));
+await sb('locations',{method:'POST',prefer:'return=minimal',body:JSON.stringify({id:'loc'+Date.now(),name,sub,sort_order:maxOrder+1})});
+document.getElementById('new-loc-name').value='';
+document.getElementById('new-loc-sub').value='';
+await refreshAll();
+showToast('Location added ✓');
 }
-
 async function deleteLocation(locId) {
-  const loc=locations.find(l=>l.id===locId);
-  if(!confirm(`Delete "${loc?.name}"${loc?.instruments.length?' and all its instruments':''}?`))return;
-  await sb(`locations?id=eq.${locId}`,{method:'DELETE'});
-  await refreshAll();
-  showToast('Location removed');
+const loc=locations.find(l=>l.id===locId);
+if(!confirm(`Delete "${loc?.name}"${loc?.instruments.length?' and all its instruments':''}?`))return;
+await sb(`locations?id=eq.${locId}`,{method:'DELETE'});
+await refreshAll();
+showToast('Location removed');
 }
-
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-
 function showToast(msg) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.style.display='block';
-  setTimeout(()=>t.style.display='none',2500);
+const t=document.getElementById('toast');
+t.textContent=msg; t.style.display='block';
+setTimeout(()=>t.style.display='none',2500);
 }
-
 function showTab(name, el) {
-  document.querySelectorAll('.tab,.section').forEach(e=>e.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  el.classList.add('active');
-  if(name==='history'){loadReportsFromDB().then(renderReports);}
-  if(name==='admin'&&adminUnlocked)renderAdminPanel();
+document.querySelectorAll('.tab,.section').forEach(e=>e.classList.remove('active'));
+document.getElementById('tab-'+name).classList.add('active');
+el.classList.add('active');
+if(name==='history'){loadReportsFromDB().then(renderReports);}
+if(name==='admin'&&adminUnlocked)renderAdminPanel();
 }
-
 async function refreshAll() {
-  const btn=document.getElementById('refresh-btn');
-  btn.innerHTML='<span class="spinner"></span>';
-  try {
-    await Promise.all([loadAll(),loadReportsFromDB()]);
-    renderDashboard();
-    renderReportForm();
-    if(adminUnlocked)renderAdminPanel();
-    if(document.querySelector('#tab-history.active'))renderReports();
-  } catch(e) {
-    document.getElementById('inst-list').innerHTML=`<div class="error-box">Could not connect to Supabase.<br><small>${e.message}</small></div>`;
-  }
-  btn.innerHTML='↻ Refresh';
+const btn=document.getElementById('refresh-btn');
+btn.innerHTML='<span class="spinner"></span>';
+try {
+await Promise.all([loadAll(),loadReportsFromDB()]);
+renderDashboard();
+renderReportForm();
+if(adminUnlocked)renderAdminPanel();
+if(document.querySelector('#tab-history.active'))renderReports();
+} catch(e) {
+document.getElementById('inst-list').innerHTML=`<div class="error-box">Could not connect to Supabase.<br><small>${e.message}</small></div>`;
 }
-
+btn.innerHTML='↻ Refresh';
+}
 document.getElementById('pin-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPin();});
 document.querySelectorAll('.overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
-
 refreshAll();
 </script>
 </body>
